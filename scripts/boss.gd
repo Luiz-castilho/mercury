@@ -1,0 +1,643 @@
+class_name Boss
+extends CharacterBody2D
+## Pr0gr4m-revive (Godot 4.x): chefe de Mercúrio em duas fases.
+##
+## FASE 1 (tentáculos): flutua e alterna lança, investida e disparo prismático.
+##   Fica vulnerável na recuperação da lança e no atordoamento da investida.
+## FASE 2 (drone blindado): o escudo bloqueia todo dano. Ele persegue o jogador e
+##   alterna investida frenética e mergulho de broca. Se o mergulho cair perto de
+##   um EnergyCore (energy_core.gd, elemento do cenário), o escudo cai e a bateria
+##   do núcleo fica exposta por "exposed_time". Bater na bateria causa o dano.
+##
+## O chefe só se move com move_and_collide: a máscara de colisão dele deve ter
+## SÓ o chão e as paredes da arena (não o jogador). O dano vem de áreas.
+##
+## Estrutura de nós (script no nó raiz):
+##   Boss (CharacterBody2D)
+##   ├── CollisionShape2D
+##   ├── Sprite2D ou AnimatedSprite2D     -> "sprite" (arte virada para a DIREITA)
+##   ├── Tentacles (Node2D)               -> "tentacles" (só fase 1)
+##   ├── ShieldVisual (Node2D)            -> "shield_visual" (domo, só fase 2)
+##   ├── ContactArea (Area2D + shape)     -> "contact_area" (dano na investida/mergulho)
+##   ├── DiveTelegraph (coluna vertical)  -> "dive_telegraph" (aviso do mergulho)
+##   └── FacingPivot (Node2D)             -> "facing_pivot" (espelha com a direção)
+##       ├── LungeTelegraph               -> "lunge_telegraph"
+##       ├── LungeHitbox (Area2D + shape) -> "lunge_hitbox" (~280 px à frente)
+##       └── Muzzle (Marker2D)            -> "muzzle" (saída das esferas)
+## Fora do chefe: um Area2D da sala -> "trigger_area" (começa a luta) e os
+## EnergyCore espalhados pelo chão da arena.
+
+signal started
+signal phase_changed(phase: int)
+signal health_changed(current: float, maximum: float)
+signal impact(strength: float)
+signal defeated
+
+enum State { INACTIVE, IDLE, WINDUP, ACTION, RECOVERY, STUNNED, TRANSITION, DEAD }
+enum Attack { NONE, LUNGE, RAM, PRISM, DIVE }
+
+@export_group("Vida")
+@export var phase1_health := 10.0
+@export var phase2_health := 10.0
+## Fase 1: dano fora das janelas de vulnerabilidade (1.0 = dano total sempre).
+@export_range(0.0, 1.0) var guarded_damage_multiplier := 0.5
+## Fase 2: dano de cada acerto na bateria (o golpe do jogador vale 1).
+@export var battery_damage := 4.0
+@export var battery_hit_cooldown := 0.4
+## Fase 2: dano no corpo com o escudo desligado (0 = só a bateria machuca).
+@export_range(0.0, 1.0) var exposed_body_damage_multiplier := 0.0
+@export var contact_damage := 1
+
+@export_group("Geral")
+## Se falso, a luta só começa quando o jogador entra no "trigger_area".
+@export var auto_start := false
+@export var transition_time := 2.5
+@export var hover_speed := 160.0
+@export var vertical_speed := 320.0
+@export var bob_amplitude := 12.0
+@export var bob_speed := 2.0
+@export var windup_tint := Color(1.0, 0.55, 0.35)
+
+@export_group("Fase 1: ritmo")
+@export var p1_idle_min := 1.2
+@export var p1_idle_max := 2.0
+@export var p1_preferred_distance := 280.0
+@export var enable_prism := true
+
+@export_group("Fase 1: lança")
+@export var lunge_windup := 0.8
+@export var lunge_action := 0.25
+@export var lunge_recovery := 1.0
+@export var lunge_damage := 1
+
+@export_group("Fase 1: investida")
+@export var ram_windup := 0.9
+@export var ram_speed := 900.0
+@export var ram_max_time := 3.0
+## Atordoamento ao bater na parede (janela de dano total).
+@export var ram_stun := 2.0
+
+@export_group("Fase 1: disparo prismático")
+@export var prism_windup := 1.0
+@export var prism_count := 3
+@export var prism_interval := 0.25
+@export var prism_spread_deg := 25.0
+@export var prism_recovery := 1.0
+@export var projectile_speed := 220.0
+@export var projectile_scene: PackedScene
+
+@export_group("Fase 2: ritmo")
+@export var p2_idle_min := 1.0
+@export var p2_idle_max := 1.6
+@export var p2_chase_speed := 220.0
+## Chance de mergulhar quando o jogador está perto de um núcleo / longe deles.
+@export_range(0.0, 1.0) var dive_chance_near_core := 0.8
+@export_range(0.0, 1.0) var dive_chance_default := 0.3
+
+@export_group("Fase 2: investida frenética")
+@export var p2_ram_windup := 0.6
+@export var p2_ram_speed := 1100.0
+@export var p2_ram_recovery := 0.8
+
+@export_group("Fase 2: mergulho de broca")
+@export var dive_rise_height := 140.0
+@export var dive_windup := 0.8
+## Nos últimos segundos do aviso a posição horizontal trava.
+@export var dive_lock_time := 0.25
+@export var dive_speed := 1000.0
+## Preso no chão FORA de um núcleo (escudo continua ligado).
+@export var dive_stuck_time := 1.2
+## Bateria exposta quando o mergulho cai perto de um núcleo.
+@export var exposed_time := 3.0
+## Distância horizontal (px) do impacto ao núcleo para expor a bateria.
+@export var core_trigger_radius := 160.0
+## Se verdadeiro, a investida que bater na parede perto de um núcleo também o expõe.
+@export var ram_can_expose_cores := false
+
+@export_group("Nós")
+@export var sprite: Node2D
+@export var phase2_sprite: Node2D
+@export var tentacles: CanvasItem
+@export var shield_visual: CanvasItem
+@export var contact_area: Area2D
+@export var dive_telegraph: CanvasItem
+@export var facing_pivot: Node2D
+@export var lunge_telegraph: CanvasItem
+@export var lunge_hitbox: Area2D
+@export var muzzle: Marker2D
+@export var trigger_area: Area2D
+
+var phase := 1
+var health := 0.0
+var max_health := 0.0
+var facing := -1
+
+var _state := State.INACTIVE
+var _attack := Attack.NONE
+var _last_attack := Attack.NONE
+var _timer := 0.0
+var _duration := 0.0
+var _idle_wait := 1.0
+var _time := 0.0
+var _home_y := 0.0
+var _hover_side := 1
+var _contact_active := false
+var _hit_player := false
+var _shield_up := false
+var _stun_exposed := false
+var _battery_cd := 0.0
+var _prism_fired := 0
+var _player: Node2D
+var _exposed_core: EnergyCore
+var _cores: Array[EnergyCore] = []
+
+
+func _ready() -> void:
+	add_to_group("enemy")
+	add_to_group("boss")
+	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
+	_home_y = global_position.y
+	phase = 1
+	max_health = phase1_health
+	health = max_health
+	_face(-1)
+	_set_phase_visuals()
+	_hide_telegraphs()
+	if lunge_hitbox:
+		lunge_hitbox.monitoring = false
+	if trigger_area:
+		trigger_area.body_entered.connect(_on_trigger_entered)
+	_find_cores.call_deferred()
+	if auto_start:
+		start_fight.call_deferred()
+
+
+func _find_cores() -> void:
+	_cores.clear()
+	for node in get_tree().get_nodes_in_group("energy_core"):
+		var core := node as EnergyCore
+		if core:
+			core.battery_hit.connect(_on_battery_hit)
+			_cores.append(core)
+
+
+func _on_trigger_entered(body: Node2D) -> void:
+	if body.is_in_group("player"):
+		start_fight()
+
+
+## Começa a luta (chamado pelo trigger_area, ou à mão por outro script).
+func start_fight() -> void:
+	if _state != State.INACTIVE:
+		return
+	_player = get_tree().get_first_node_in_group("player") as Node2D
+	health_changed.emit(health, max_health)
+	started.emit()
+	_enter_idle()
+
+
+func _physics_process(delta: float) -> void:
+	if _state == State.INACTIVE or _state == State.DEAD:
+		return
+	_time += delta
+	_timer += delta
+	_battery_cd -= delta
+	if not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player") as Node2D
+
+	match _state:
+		State.IDLE:
+			_process_idle(delta)
+		State.WINDUP:
+			_process_windup(delta)
+		State.ACTION:
+			_process_action(delta)
+		State.RECOVERY:
+			if _timer >= _duration:
+				_enter_idle()
+		State.STUNNED:
+			if _timer >= _duration:
+				_end_stun()
+		State.TRANSITION:
+			_process_transition(delta)
+
+	_check_contact()
+
+
+# --- Estados ----------------------------------------------------------------
+
+func _enter(new_state: State, duration := 0.0) -> void:
+	_state = new_state
+	_timer = 0.0
+	_duration = duration
+	_contact_active = false
+	_hide_telegraphs()
+	if lunge_hitbox:
+		lunge_hitbox.monitoring = false
+	if sprite:
+		sprite.modulate = Color.WHITE
+
+	match new_state:
+		State.IDLE:
+			_play("idle")
+		State.WINDUP:
+			match _attack:
+				Attack.LUNGE:
+					_show(lunge_telegraph, true)
+					_play("lunge_windup")
+				Attack.RAM:
+					_tint(windup_tint)
+					_play("ram_windup")
+				Attack.PRISM:
+					_play("prism_windup")
+				Attack.DIVE:
+					_show(dive_telegraph, true)
+					_play("dive_windup")
+		State.ACTION:
+			match _attack:
+				Attack.LUNGE:
+					if lunge_hitbox:
+						lunge_hitbox.monitoring = true
+					_play("lunge")
+				Attack.RAM:
+					_contact_active = true
+					_play("ram")
+				Attack.PRISM:
+					_prism_fired = 0
+					_play("prism")
+				Attack.DIVE:
+					_contact_active = true
+					_play("dive")
+		State.RECOVERY:
+			_play("recovery")
+		State.STUNNED:
+			_play("exposed" if _stun_exposed else "stunned")
+		State.TRANSITION:
+			_play("transition")
+
+
+func _enter_idle() -> void:
+	_attack = Attack.NONE
+	_hit_player = false
+	if phase == 1:
+		_idle_wait = randf_range(p1_idle_min, p1_idle_max)
+	else:
+		_idle_wait = randf_range(p2_idle_min, p2_idle_max)
+	_hover_side = -_hover_side
+	_enter(State.IDLE)
+
+
+func _process_idle(delta: float) -> void:
+	_hover(delta)
+	_face_player()
+	if _timer >= _idle_wait and _player:
+		_start_attack(_choose_attack())
+
+
+func _hover(delta: float) -> void:
+	if _player == null:
+		return
+	var speed := hover_speed if phase == 1 else p2_chase_speed
+	var target_x := _player.global_position.x
+	if phase == 1:
+		target_x += _hover_side * p1_preferred_distance
+	var target_y := _home_y + sin(_time * bob_speed) * bob_amplitude
+	var x_step := clampf(target_x - global_position.x, -speed * delta, speed * delta)
+	var y_step := clampf(target_y - global_position.y, -vertical_speed * delta, vertical_speed * delta)
+	var collision := move_and_collide(Vector2(x_step, y_step))
+	if collision and absf(collision.get_normal().x) > 0.5:
+		_hover_side = -_hover_side  # encostou na parede: passa para o outro lado
+
+
+func _choose_attack() -> Attack:
+	if phase == 1:
+		var options: Array[Attack] = [Attack.LUNGE, Attack.RAM]
+		if enable_prism:
+			options.append(Attack.PRISM)
+		if options.size() > 1:
+			options.erase(_last_attack)
+		return options.pick_random()
+	var chance := dive_chance_near_core if _player_near_core() else dive_chance_default
+	return Attack.DIVE if randf() < chance else Attack.RAM
+
+
+func _start_attack(attack: Attack) -> void:
+	_attack = attack
+	_last_attack = attack
+	_hit_player = false
+	if attack != Attack.DIVE:
+		_face_player()
+	match attack:
+		Attack.LUNGE:
+			_enter(State.WINDUP, lunge_windup)
+		Attack.RAM:
+			_enter(State.WINDUP, ram_windup if phase == 1 else p2_ram_windup)
+		Attack.PRISM:
+			_enter(State.WINDUP, prism_windup)
+		Attack.DIVE:
+			_enter(State.WINDUP, dive_windup)
+
+
+func _process_windup(delta: float) -> void:
+	if _attack == Attack.DIVE:
+		_process_dive_windup(delta)
+	if _timer < _duration:
+		return
+	match _attack:
+		Attack.LUNGE:
+			_enter(State.ACTION, lunge_action)
+		Attack.RAM:
+			_enter(State.ACTION, ram_max_time)
+		Attack.PRISM:
+			_enter(State.ACTION)
+		Attack.DIVE:
+			_enter(State.ACTION, 3.0)
+
+
+func _process_action(delta: float) -> void:
+	match _attack:
+		Attack.LUNGE:
+			_check_lunge_hit()
+			if _timer >= _duration:
+				_enter(State.RECOVERY, lunge_recovery)
+		Attack.RAM:
+			_process_ram(delta)
+		Attack.PRISM:
+			_process_prism()
+		Attack.DIVE:
+			_process_dive(delta)
+
+
+# --- Ataques ----------------------------------------------------------------
+
+func _check_lunge_hit() -> void:
+	if _hit_player or lunge_hitbox == null:
+		return
+	for body in lunge_hitbox.get_overlapping_bodies():
+		if body.is_in_group("player"):
+			body.take_damage(lunge_damage, global_position)
+			_hit_player = true
+
+
+func _process_ram(delta: float) -> void:
+	var speed := ram_speed if phase == 1 else p2_ram_speed
+	var collision := move_and_collide(Vector2(facing * speed * delta, 0.0))
+	if collision and absf(collision.get_normal().x) > 0.5:
+		impact.emit(1.0)
+		if phase == 1:
+			_stun_exposed = false
+			_enter(State.STUNNED, ram_stun)
+		else:
+			var core := _find_core_near(global_position, core_trigger_radius) if ram_can_expose_cores else null
+			if core:
+				_begin_exposed(core)
+			else:
+				_enter(State.RECOVERY, p2_ram_recovery)
+	elif _timer >= _duration:
+		_enter(State.RECOVERY, 0.5)
+
+
+func _process_prism() -> void:
+	var due := mini(int(_timer / prism_interval) + 1, prism_count)
+	while _prism_fired < due:
+		_fire_prism_shot(_prism_fired)
+		_prism_fired += 1
+	if _prism_fired >= prism_count and _timer >= prism_count * prism_interval:
+		_enter(State.RECOVERY, prism_recovery)
+
+
+func _fire_prism_shot(index: int) -> void:
+	if projectile_scene == null:
+		return
+	var projectile := projectile_scene.instantiate()
+	var spread := prism_spread_deg * (float(index) - (prism_count - 1) / 2.0)
+	var direction := Vector2.DOWN.rotated(deg_to_rad(spread))
+	get_parent().add_child(projectile)
+	projectile.global_position = muzzle.global_position if muzzle else global_position
+	projectile.set("velocity", direction * projectile_speed)
+
+
+func _process_dive_windup(delta: float) -> void:
+	var locked := _timer >= _duration - dive_lock_time
+	var target_y := _home_y - dive_rise_height
+	var y_step := clampf(target_y - global_position.y, -vertical_speed * delta, vertical_speed * delta)
+	var x_step := 0.0
+	if not locked and _player:
+		var track := p2_chase_speed * 1.5
+		x_step = clampf(_player.global_position.x - global_position.x, -track * delta, track * delta)
+	move_and_collide(Vector2(x_step, y_step))
+	if dive_telegraph:
+		dive_telegraph.modulate.a = 1.0 if locked else 0.45
+
+
+func _process_dive(delta: float) -> void:
+	var collision := move_and_collide(Vector2(0.0, dive_speed * delta))
+	if collision and collision.get_normal().y < -0.5:
+		impact.emit(1.5)
+		var core := _find_core_near(global_position, core_trigger_radius)
+		if core:
+			_begin_exposed(core)
+		else:
+			_stun_exposed = false
+			_enter(State.STUNNED, dive_stuck_time)
+	elif _timer >= _duration:
+		_enter(State.RECOVERY, 0.5)
+
+
+func _check_contact() -> void:
+	if not _contact_active or _hit_player or contact_area == null:
+		return
+	for body in contact_area.get_overlapping_bodies():
+		if body.is_in_group("player"):
+			body.take_damage(contact_damage, global_position)
+			_hit_player = true
+
+
+# --- Núcleos de energia (fase 2) ---------------------------------------------
+
+func _find_core_near(pos: Vector2, radius: float) -> EnergyCore:
+	var best: EnergyCore = null
+	var best_dist := radius
+	for core in _cores:
+		var d := absf(core.global_position.x - pos.x)
+		if d <= best_dist:
+			best = core
+			best_dist = d
+	return best
+
+
+func _player_near_core() -> bool:
+	if _player == null:
+		return false
+	return _find_core_near(_player.global_position, core_trigger_radius * 1.5) != null
+
+
+func _begin_exposed(core: EnergyCore) -> void:
+	_exposed_core = core
+	_stun_exposed = true
+	_shield_up = false
+	_update_shield_visual()
+	core.expose(exposed_time)
+	_enter(State.STUNNED, exposed_time)
+
+
+func _end_stun() -> void:
+	if _exposed_core:
+		_exposed_core.conceal()
+		_exposed_core = null
+	_stun_exposed = false
+	if phase == 2:
+		_shield_up = true
+		_update_shield_visual()
+	_enter_idle()
+
+
+func _on_battery_hit(amount: int) -> void:
+	if phase != 2 or _state != State.STUNNED or not _stun_exposed or _battery_cd > 0.0:
+		return
+	_battery_cd = battery_hit_cooldown
+	_apply_damage(float(amount) * battery_damage)
+
+
+# --- Dano e fases -----------------------------------------------------------
+
+## O jogador chama isto ao atacar o corpo do chefe.
+func take_damage(amount: int, _from_position := Vector2.ZERO) -> void:
+	if _state == State.INACTIVE or _state == State.TRANSITION or _state == State.DEAD:
+		return
+	var multiplier := _damage_multiplier()
+	if multiplier <= 0.0:
+		_deflect()
+		return
+	_apply_damage(float(amount) * multiplier)
+
+
+func _damage_multiplier() -> float:
+	if phase == 1:
+		if _state == State.RECOVERY or _state == State.STUNNED:
+			return 1.0
+		return guarded_damage_multiplier
+	return 0.0 if _shield_up else exposed_body_damage_multiplier
+
+
+func _apply_damage(value: float) -> void:
+	health = maxf(health - value, 0.0)
+	health_changed.emit(health, max_health)
+	_flash()
+	if health > 0.0:
+		return
+	if phase == 1:
+		_begin_transition()
+	else:
+		_die()
+
+
+func _begin_transition() -> void:
+	_enter(State.TRANSITION, transition_time)
+	_attack = Attack.NONE
+	if tentacles:
+		create_tween().tween_property(tentacles, "modulate:a", 0.0, transition_time * 0.5)
+
+
+func _process_transition(delta: float) -> void:
+	var y_step := clampf(_home_y - global_position.y, -vertical_speed * delta, vertical_speed * delta)
+	move_and_collide(Vector2(0.0, y_step))
+	if _timer >= _duration:
+		phase = 2
+		max_health = phase2_health
+		health = max_health
+		_shield_up = true
+		_set_phase_visuals()
+		health_changed.emit(health, max_health)
+		phase_changed.emit(2)
+		_enter_idle()
+
+
+func _die() -> void:
+	_state = State.DEAD
+	_contact_active = false
+	_hide_telegraphs()
+	if _exposed_core:
+		_exposed_core.conceal()
+	_shield_up = false
+	_update_shield_visual()
+	_play("dead")
+	defeated.emit()
+	var tween := create_tween()
+	tween.tween_interval(1.0)
+	tween.tween_property(self, "modulate:a", 0.0, 0.8)
+	await tween.finished
+	queue_free()
+
+
+# --- Visual -----------------------------------------------------------------
+
+func _face_player() -> void:
+	if is_instance_valid(_player):
+		_face(1 if _player.global_position.x > global_position.x else -1)
+
+
+func _face(dir: int) -> void:
+	facing = dir
+	if facing_pivot:
+		facing_pivot.scale.x = facing
+	if sprite:
+		sprite.scale.x = absf(sprite.scale.x) * facing
+
+
+func _set_phase_visuals() -> void:
+	if tentacles:
+		tentacles.visible = phase == 1
+		tentacles.modulate.a = 1.0
+	if phase2_sprite:
+		if phase == 2:
+			if sprite:
+				sprite.visible = false
+			sprite = phase2_sprite
+			sprite.visible = true
+			_face(facing)
+		else:
+			phase2_sprite.visible = false
+	_update_shield_visual()
+
+
+func _update_shield_visual() -> void:
+	if shield_visual:
+		shield_visual.visible = phase == 2 and _shield_up
+
+
+func _hide_telegraphs() -> void:
+	_show(lunge_telegraph, false)
+	_show(dive_telegraph, false)
+
+
+func _show(node: CanvasItem, on: bool) -> void:
+	if node:
+		node.visible = on
+
+
+func _tint(color: Color) -> void:
+	if sprite:
+		sprite.modulate = color
+
+
+## Toca "p1_<nome>" ou "p2_<nome>" se existir no AnimatedSprite2D (opcional).
+## Nomes: idle, lunge_windup, lunge, recovery, ram_windup, ram, prism_windup,
+## prism, dive_windup, dive, stunned, exposed, transition, dead.
+func _play(key: String) -> void:
+	var anim := sprite as AnimatedSprite2D
+	if anim == null or anim.sprite_frames == null:
+		return
+	var anim_name := "p%d_%s" % [phase, key]
+	if anim.sprite_frames.has_animation(anim_name):
+		anim.play(anim_name)
+
+
+func _flash() -> void:
+	modulate = Color(1.8, 1.8, 1.8)
+	create_tween().tween_property(self, "modulate", Color.WHITE, 0.15)
+
+
+func _deflect() -> void:
+	modulate = Color(0.7, 0.85, 1.4)
+	create_tween().tween_property(self, "modulate", Color.WHITE, 0.12)

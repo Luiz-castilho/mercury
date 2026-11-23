@@ -1,0 +1,42 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="fase_mercurio"
+run/main_scene="uid://c2ytre4ro1s43"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+SceneManager="*uid://dr1jiqvx0s8br"
+
+[display]
+
+window/size/viewport_width=1900
+window/size/viewport_height=1820
+
+[layer_names]
+
+2d_physics/layer_1="Player"
+2d_physics/layer_2="Chão"
+2d_physics/layer_3="Plataforma"
+2d_physics/layer_4="inimigos"
+2d_physics/layer_5="Dano"
+2d_physics/layer_6="Objetos"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"

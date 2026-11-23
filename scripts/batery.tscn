@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://dxv58jvcexdi3"]
+
+[ext_resource type="Script" uid="uid://d11ebl3gfev7e" path="res://scripts/energy_core.gd" id="1_msqel"]
+[ext_resource type="Texture2D" uid="uid://ppcdcs7rmek8" path="res://images/fundo_transparente_boss.png" id="2_pvymg"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_msqel"]
+size = Vector2(207, 142)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yf307"]
+size = Vector2(349, 150)
+
+[node name="Batery" type="Area2D" unique_id=1192119535 node_paths=PackedStringArray("closed_visual", "battery_visual", "collision")]
+script = ExtResource("1_msqel")
+closed_visual = NodePath("closed")
+battery_visual = NodePath("open")
+collision = NodePath("CollisionShape2D/CollisionShape2D")
+
+[node name="batteryhitbox" type="CollisionShape2D" parent="." unique_id=458867251]
+position = Vector2(-3.5, -52)
+shape = SubResource("RectangleShape2D_msqel")
+
+[node name="open" type="Sprite2D" parent="." unique_id=1664563190]
+texture = ExtResource("2_pvymg")
+region_enabled = true
+region_rect = Rect2(866.0391, 636.33136, 356.26947, 205.66876)
+
+[node name="closed" type="Sprite2D" parent="." unique_id=364027590]
+position = Vector2(0, 25)
+scale = Vector2(-0.99639887, 1.0060594)
+texture = ExtResource("2_pvymg")
+region_enabled = true
+region_rect = Rect2(461.6131, 686.54846, 349.3614, 152.51697)
+
+[node name="CollisionShape2D" type="StaticBody2D" parent="." unique_id=975766728]
+light_mask = 2
+position = Vector2(-0.5, 25)
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionShape2D" unique_id=356792191]
+light_mask = 2
+visibility_layer = 0
+position = Vector2(1, -1)
+shape = SubResource("RectangleShape2D_yf307")
+debug_color = Color(0.3254902, 0.20392157, 0.70980394, 0.41960785)
