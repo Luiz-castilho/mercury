@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dxv58jvcexdi3"]
+[gd_scene format=3 uid="uid://d4bc8x3dj32ni"]
 
 [ext_resource type="Script" uid="uid://d11ebl3gfev7e" path="res://scripts/energy_core.gd" id="1_msqel"]
 [ext_resource type="Texture2D" uid="uid://ppcdcs7rmek8" path="res://images/fundo_transparente_boss.png" id="2_pvymg"]
@@ -9,10 +9,14 @@ size = Vector2(207, 142)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_yf307"]
 size = Vector2(349, 150)
 
-[node name="Batery" type="Area2D" unique_id=1192119535 node_paths=PackedStringArray("closed_visual", "battery_visual", "collision")]
+[node name="Batery" type="Area2D" unique_id=1192119535 node_paths=PackedStringArray("inactive_visual", "closed_visual", "battery_visual", "destroyed_visual", "collision")]
+collision_layer = 32
+collision_mask = 0
 script = ExtResource("1_msqel")
+inactive_visual = NodePath("inactive")
 closed_visual = NodePath("closed")
 battery_visual = NodePath("open")
+destroyed_visual = NodePath("destroyed")
 collision = NodePath("CollisionShape2D/CollisionShape2D")
 
 [node name="batteryhitbox" type="CollisionShape2D" parent="." unique_id=458867251]
@@ -30,6 +34,17 @@ scale = Vector2(-0.99639887, 1.0060594)
 texture = ExtResource("2_pvymg")
 region_enabled = true
 region_rect = Rect2(461.6131, 686.54846, 349.3614, 152.51697)
+
+[node name="inactive" type="Sprite2D" parent="." unique_id=1500000001]
+visible = false
+position = Vector2(0, 25)
+
+[node name="destroyed" type="Sprite2D" parent="." unique_id=1500000002]
+visible = false
+position = Vector2(0, 25)
+texture = ExtResource("2_pvymg")
+region_enabled = true
+region_rect = Rect2(38.584824, 688.0743, 360.123, 152.19482)
 
 [node name="CollisionShape2D" type="StaticBody2D" parent="." unique_id=975766728]
 light_mask = 2

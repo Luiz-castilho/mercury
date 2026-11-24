@@ -22,7 +22,7 @@ SceneManager="*uid://dr1jiqvx0s8br"
 [display]
 
 window/size/viewport_width=1900
-window/size/viewport_height=1820
+window/size/viewport_height=1080
 
 [layer_names]
 
@@ -32,6 +32,7 @@ window/size/viewport_height=1820
 2d_physics/layer_4="inimigos"
 2d_physics/layer_5="Dano"
 2d_physics/layer_6="Objetos"
+2d_physics/layer_7="BarreiraInimigos"
 
 [physics]
 

@@ -1,16 +1,17 @@
 extends StaticBody2D
-## Plataforma que some (Godot 4.x). Estrutura:
+## Plataforma que some (Godot 4.x). Use a cena vanishplataform.tscn. Estrutura:
 ##   VanishingPlatform (StaticBody2D)  <- este script
-##   ├── CollisionShape2D   (arraste para "collision")
-##   ├── Sprite2D           (arraste para "sprite")
-##   └── Trigger (Area2D + CollisionShape2D fino logo ACIMA da plataforma)
-## O Trigger deve ter máscara de colisão na camada do jogador.
+##   ├── CollisionShape2D   (campo "collision")
+##   ├── Sprite2D           (campo "sprite")
+##   └── Trigger (Area2D)   (campo "trigger"): faixa fina logo ACIMA da plataforma,
+##                          com a máscara de colisão na camada do jogador (1).
+## Quando o jogador pisa: ela treme (aviso), some, e volta depois de um tempo.
 
 @export var trigger: Area2D
 @export var collision: CollisionShape2D
 @export var sprite: Node2D
 ## Tempo de tremor antes de sumir (o aviso visual).
-@export var shake_time := 0.5
+@export var shake_time := 0.6
 @export var shake_amount := 3.0
 ## Tempo sumida. Curto para nunca travar a progressão.
 @export var hidden_time := 3.0
@@ -20,6 +21,9 @@ var _busy := false
 
 
 func _ready() -> void:
+	if trigger == null or collision == null:
+		push_error("vanishing_platform: preencha os campos Trigger e Collision.")
+		return
 	trigger.body_entered.connect(_on_trigger_body_entered)
 
 
@@ -32,20 +36,29 @@ func _on_trigger_body_entered(body: Node2D) -> void:
 
 func _vanish_cycle() -> void:
 	# 1. Treme (aviso).
-	var origin := sprite.position
+	var origin := sprite.position if sprite else Vector2.ZERO
 	var elapsed := 0.0
 	while elapsed < shake_time:
-		sprite.position = origin + Vector2(randf_range(-shake_amount, shake_amount), 0.0)
+		if sprite:
+			sprite.position = origin + Vector2(randf_range(-shake_amount, shake_amount), 0.0)
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
-	sprite.position = origin
+	if sprite:
+		sprite.position = origin
 
 	# 2. Some: o contorno fantasma mostra onde ela volta.
 	collision.set_deferred("disabled", true)
-	sprite.modulate.a = ghost_alpha
+	if sprite:
+		sprite.modulate.a = ghost_alpha
 	await get_tree().create_timer(hidden_time).timeout
 
-	# 3. Volta.
+	# 3. Volta (pisca antes, para o jogador ver que ela está voltando).
+	if sprite:
+		for i in 3:
+			sprite.modulate.a = 0.7
+			await get_tree().create_timer(0.08).timeout
+			sprite.modulate.a = ghost_alpha
+			await get_tree().create_timer(0.08).timeout
+		sprite.modulate.a = 1.0
 	collision.set_deferred("disabled", false)
-	sprite.modulate.a = 1.0
 	_busy = false

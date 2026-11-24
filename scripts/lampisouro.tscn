@@ -1,48 +1,55 @@
 [gd_scene format=3 uid="uid://dfnsykssvagx8"]
 
 [ext_resource type="Script" uid="uid://bpqeya03nvm13" path="res://scripts/lampesouro.gd" id="1_s8j18"]
-[ext_resource type="Texture2D" uid="uid://bwwj7x4lfe5lb" path="res://0a38d870-c68d-4d01-8938-5874515db97e.png" id="2_0fgu8"]
+[ext_resource type="SpriteFrames" uid="uid://btq2avrijkxq6" path="res://images/lampesouro_frames.tres" id="2_frames"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_cclhm"]
-radius = 28.442924
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(89, 58)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_syck6"]
-size = Vector2(134, 51.5)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_detect"]
+size = Vector2(340, 130)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_jovl0"]
-size = Vector2(134, 34)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_laser"]
+size = Vector2(230, 56)
 
 [node name="lampisouro" type="CharacterBody2D" unique_id=1840397562 node_paths=PackedStringArray("detection_area", "laser_pivot", "telegraph", "laser_hitbox", "sprite")]
-visible = false
+collision_layer = 8
+collision_mask = 70
 script = ExtResource("1_s8j18")
 detection_area = NodePath("DetectionArea")
 laser_pivot = NodePath("Laser")
 telegraph = NodePath("Laser/Telegraph")
 laser_hitbox = NodePath("Laser/LaserHitBox")
-sprite = NodePath("Sprite2D")
+sprite = NodePath("AnimatedSprite2D")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=160149425]
-shape = SubResource("CircleShape2D_cclhm")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=913291189]
+position = Vector2(12.5, -7)
+shape = SubResource("RectangleShape2D_body")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=594866620]
-position = Vector2(0.46875566, 0.89062905)
-scale = Vector2(0.19897467, 0.16358139)
-texture = ExtResource("2_0fgu8")
-hframes = 6
-vframes = 3
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=960294572]
+position = Vector2(11.55, -12.525)
+scale = Vector2(0.37549022, 0.3676166)
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+autoplay = "idle"
 
-[node name="DetectionArea" type="Area2D" parent="." unique_id=1612404639]
+[node name="DetectionArea" type="Area2D" parent="." unique_id=882933645]
+collision_layer = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea" unique_id=413082244]
-position = Vector2(2.2176514, -1.675293)
-shape = SubResource("RectangleShape2D_syck6")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea" unique_id=255852464]
+position = Vector2(0, -20)
+shape = SubResource("RectangleShape2D_detect")
 
-[node name="Laser" type="Node2D" parent="." unique_id=339330655]
+[node name="Laser" type="Node2D" parent="." unique_id=1979599089]
 
-[node name="Telegraph" type="Polygon2D" parent="Laser" unique_id=319317828]
+[node name="Telegraph" type="Polygon2D" parent="Laser" unique_id=2103884283]
+visible = false
+color = Color(1, 0.35, 0.2, 0.35)
+polygon = PackedVector2Array(30, -34, 260, -34, 260, 22, 30, 22)
 
-[node name="LaserHitBox" type="Area2D" parent="Laser" unique_id=120048707]
+[node name="LaserHitBox" type="Area2D" parent="Laser" unique_id=1247423234]
+collision_layer = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Laser/LaserHitBox" unique_id=406990943]
-position = Vector2(-63.78235, -14.425293)
-shape = SubResource("RectangleShape2D_jovl0")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Laser/LaserHitBox" unique_id=1239618213]
+position = Vector2(145, -6)
+shape = SubResource("RectangleShape2D_laser")

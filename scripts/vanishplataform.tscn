@@ -1,36 +1,33 @@
 [gd_scene format=3 uid="uid://c7ayq2qf1aw1o"]
 
 [ext_resource type="Script" uid="uid://c0nldvr7qmd5p" path="res://scripts/vanishing_platform.gd" id="1_damtg"]
-[ext_resource type="Texture2D" uid="uid://ba4y8jfvd7jj4" path="res://vanishingPlataform_1.png" id="2_cu3xq"]
+[ext_resource type="Texture2D" path="res://images/vanish_platform.png" id="2_art"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lcwew"]
-size = Vector2(504, 156)
+size = Vector2(504, 100)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_rxifr"]
-size = Vector2(502, 156)
+size = Vector2(470, 40)
 
-[node name="vanishplataform" type="StaticBody2D" unique_id=50273258 node_paths=PackedStringArray("trigger", "collision")]
+[node name="vanishplataform" type="StaticBody2D" unique_id=50273258 node_paths=PackedStringArray("trigger", "collision", "sprite")]
 script = ExtResource("1_damtg")
 trigger = NodePath("Trigger")
 collision = NodePath("CollisionShape2D")
+sprite = NodePath("Sprite2D")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=437662242]
-position = Vector2(55, 37)
+position = Vector2(55, 9)
 shape = SubResource("RectangleShape2D_lcwew")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=710747197]
-position = Vector2(28, 7)
-texture = ExtResource("2_cu3xq")
-hframes = 2
-vframes = 2
+position = Vector2(55, 9)
+scale = Vector2(0.774, 0.774)
+texture = ExtResource("2_art")
 
 [node name="Trigger" type="Area2D" parent="." unique_id=1991920977]
-position = Vector2(1, 0)
 collision_layer = 0
-collision_mask = 2
+collision_mask = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Trigger" unique_id=1513622475]
-light_mask = 2
-visibility_layer = 0
-position = Vector2(53, 38)
+position = Vector2(55, -60)
 shape = SubResource("RectangleShape2D_rxifr")

@@ -7,7 +7,8 @@ extends CharacterBody2D
 ## Estrutura de nós (script no nó raiz):
 ##   RoboMinerador (CharacterBody2D)
 ##   ├── CollisionShape2D
-##   ├── Sprite2D                      -> campo "sprite" (arte virada para a DIREITA)
+##   ├── AnimatedSprite2D              -> campo "sprite" (arte virada para a DIREITA)
+##   │     animações: idle, walk, windup, attack, vulnerable
 ##   ├── DetectionArea (Area2D)        -> raio médio; máscara = camada do jogador
 ##   ├── FloorCheck (RayCast2D, opcional) -> aponta para baixo, à frente do robô
 ##   └── DrillPivot (Node2D)           -> campo "drill_pivot"
@@ -45,7 +46,7 @@ enum State { IDLE, CHASE, WINDUP, ATTACK, VULNERABLE, DEAD }
 @export var drill_pivot: Node2D
 @export var telegraph: CanvasItem
 @export var drill_hitbox: Area2D
-@export var sprite: Node2D
+@export var sprite: AnimatedSprite2D
 @export var floor_check: RayCast2D
 
 var health := 0
@@ -104,6 +105,13 @@ func _enter(new_state: State) -> void:
 		_hit_player = false
 	if sprite:
 		sprite.modulate = vulnerable_tint if new_state == State.VULNERABLE else Color.WHITE
+		sprite.speed_scale = 1.0
+	match new_state:
+		State.IDLE: _play(&"walk", true)
+		State.CHASE: _play(&"walk", true)
+		State.WINDUP: _play(&"windup", true)
+		State.ATTACK: _play(&"attack", true)
+		State.VULNERABLE: _play(&"vulnerable", true)
 
 
 func _process_idle() -> void:
@@ -113,6 +121,9 @@ func _process_idle() -> void:
 	if is_on_wall() or _ledge_ahead():
 		_face(-facing)
 	velocity.x = facing * patrol_speed
+	_play(&"walk")
+	if sprite:
+		sprite.speed_scale = 1.0
 
 
 func _process_chase() -> void:
@@ -126,7 +137,23 @@ func _process_chase() -> void:
 		velocity.x = 0.0
 		_enter(State.WINDUP)
 		return
-	velocity.x = 0.0 if _ledge_ahead() else facing * chase_speed
+	if _ledge_ahead():
+		velocity.x = 0.0
+		_play(&"idle")
+	else:
+		velocity.x = facing * chase_speed
+		_play(&"walk")
+		sprite.speed_scale = 1.6
+
+
+## Troca a animação. restart = true reinicia mesmo se já for a atual.
+func _play(anim: StringName, restart := false) -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	if not sprite.sprite_frames.has_animation(anim):
+		return
+	if restart or sprite.animation != anim:
+		sprite.play(anim)
 
 
 func _ledge_ahead() -> bool:
@@ -191,6 +218,7 @@ func _flash() -> void:
 
 func _die() -> void:
 	_state = State.DEAD
+	_play(&"vulnerable", true)
 	velocity = Vector2.ZERO
 	collision_layer = 0
 	collision_mask = 0

@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://cnfybkiim2j3w"]
+
+[ext_resource type="Script" uid="uid://dsga3wg8qha5x" path="res://scripts/robo_minerador.gd" id="1_fh8t8"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jovl0"]
+radius = 28.765835
+
+[node name="RoboMinerador" type="CharacterBody2D" unique_id=109964017]
+visible = false
+script = ExtResource("1_fh8t8")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1724262577]
+shape = SubResource("CircleShape2D_jovl0")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1623683891]
+
+[node name="Area2D" type="Area2D" parent="." unique_id=96069790]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=649671811]
+
+[node name="RayCast2D" type="RayCast2D" parent="." unique_id=1132909482]
+
+[node name="Drill" type="Node2D" parent="." unique_id=329048446]
+
+[node name="Polygon2D" type="Polygon2D" parent="Drill" unique_id=8345308]
+
+[node name="Area2D" type="Area2D" parent="Drill" unique_id=1359849480]
+position = Vector2(1, -2)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Drill/Area2D" unique_id=585151126]

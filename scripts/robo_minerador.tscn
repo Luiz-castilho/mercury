@@ -1,30 +1,61 @@
 [gd_scene format=3 uid="uid://cnfybkiim2j3w"]
 
 [ext_resource type="Script" uid="uid://dsga3wg8qha5x" path="res://scripts/robo_minerador.gd" id="1_fh8t8"]
+[ext_resource type="SpriteFrames" uid="uid://btusqy1d5t7cy" path="res://images/robo_minerador_frames.tres" id="2_frames"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_jovl0"]
-radius = 28.765835
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(54, 67)
 
-[node name="RoboMinerador" type="CharacterBody2D" unique_id=109964017]
-visible = false
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_detect"]
+size = Vector2(520, 200)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_drill"]
+size = Vector2(60, 44)
+
+[node name="RoboMinerador" type="CharacterBody2D" unique_id=109964017 node_paths=PackedStringArray("detection_area", "drill_pivot", "telegraph", "drill_hitbox", "sprite", "floor_check")]
+collision_layer = 8
+collision_mask = 70
 script = ExtResource("1_fh8t8")
+attack_range = 75.0
+detection_area = NodePath("DetectionArea")
+drill_pivot = NodePath("Drill")
+telegraph = NodePath("Drill/Telegraph")
+drill_hitbox = NodePath("Drill/DrillHitBox")
+sprite = NodePath("AnimatedSprite2D")
+floor_check = NodePath("FloorCheck")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1724262577]
-shape = SubResource("CircleShape2D_jovl0")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1240323100]
+position = Vector2(7, -3.5)
+shape = SubResource("RectangleShape2D_body")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1623683891]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1906237669]
+position = Vector2(4.75, -5.875)
+scale = Vector2(0.5443925, 0.55656934)
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+autoplay = "idle"
 
-[node name="Area2D" type="Area2D" parent="." unique_id=96069790]
+[node name="DetectionArea" type="Area2D" parent="." unique_id=1761020890]
+collision_layer = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=649671811]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea" unique_id=1311396982]
+position = Vector2(0, -20)
+shape = SubResource("RectangleShape2D_detect")
 
-[node name="RayCast2D" type="RayCast2D" parent="." unique_id=1132909482]
+[node name="FloorCheck" type="RayCast2D" parent="." unique_id=372179001]
+position = Vector2(30, 0)
+collision_mask = 6
 
-[node name="Drill" type="Node2D" parent="." unique_id=329048446]
+[node name="Drill" type="Node2D" parent="." unique_id=1933736463]
 
-[node name="Polygon2D" type="Polygon2D" parent="Drill" unique_id=8345308]
+[node name="Telegraph" type="Polygon2D" parent="Drill" unique_id=1820641407]
+visible = false
+color = Color(1, 0.55, 0.15, 0.4)
+polygon = PackedVector2Array(22, -27, 82, -27, 82, 17, 22, 17)
 
-[node name="Area2D" type="Area2D" parent="Drill" unique_id=1359849480]
-position = Vector2(1, -2)
+[node name="DrillHitBox" type="Area2D" parent="Drill" unique_id=473013416]
+collision_layer = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Drill/Area2D" unique_id=585151126]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Drill/DrillHitBox" unique_id=1830587820]
+position = Vector2(52, -5)
+shape = SubResource("RectangleShape2D_drill")

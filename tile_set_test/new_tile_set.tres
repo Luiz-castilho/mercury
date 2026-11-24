@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://bwvickypoeokq" path="res://scripts/boss_tile1png.png" id="1_cue8y"]
 [ext_resource type="Texture2D" uid="uid://ppcdcs7rmek8" path="res://images/fundo_transparente_boss.png" id="2_f1fdm"]
-[ext_resource type="PackedScene" uid="uid://dxv58jvcexdi3" path="res://scripts/batery.tscn" id="3_f1fdm"]
+[ext_resource type="PackedScene" uid="uid://d4bc8x3dj32ni" path="res://scripts/batery.tscn" id="3_f1fdm"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_adk4b"]
 texture = ExtResource("1_cue8y")

@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://art/tiles/terreno_mundo.gdshader" id="1_min83"]
+[ext_resource type="Texture2D" path="res://art/tiles/poeira_mercurio_v2.png" id="2_2tdcx"]
+[ext_resource type="Texture2D" path="res://art/tiles/mercurio_terreno_v2_mask.png" id="3_pvvq6"]
+[ext_resource type="Texture2D" path="res://art/tiles/rocha_mercurio_v2.png" id="4_o5jtc"]
+
+[resource]
+shader = ExtResource("1_min83")
+shader_parameter/mask_atlas = ExtResource("3_pvvq6")
+shader_parameter/rock_tex = ExtResource("4_o5jtc")
+shader_parameter/dust_tex = ExtResource("2_2tdcx")
+shader_parameter/world_size = 320.0
+shader_parameter/dust_tint = 1.0

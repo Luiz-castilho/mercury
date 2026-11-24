@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/grapple_point.gd" id="1_gp"]
+
+[node name="GrapplePoint" type="Node2D" node_paths=PackedStringArray("sprite")]
+script = ExtResource("1_gp")
+sprite = NodePath("Visual")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Ring" type="Polygon2D" parent="Visual"]
+color = Color(0.55, 0.85, 1, 1)
+polygon = PackedVector2Array(20.0, 0.0, 17.3, 10.0, 10.0, 17.3, 0.0, 20.0, -10.0, 17.3, -17.3, 10.0, -20.0, 0.0, -17.3, -10.0, -10.0, -17.3, -0.0, -20.0, 10.0, -17.3, 17.3, -10.0)
+
+[node name="Core" type="Polygon2D" parent="Visual"]
+color = Color(0.1, 0.2, 0.3, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)

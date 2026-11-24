@@ -1,0 +1,141 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://btq2avrijkxq6"]
+
+[ext_resource type="Texture2D" uid="uid://dofijjdk874dp" path="res://images/lampesouro_anim.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="a2_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 386, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a2_1"]
+atlas = ExtResource("1")
+region = Rect2(306, 386, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a2_2"]
+atlas = ExtResource("1")
+region = Rect2(612, 386, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a3_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 579, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a3_3"]
+atlas = ExtResource("1")
+region = Rect2(918, 579, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a0_2"]
+atlas = ExtResource("1")
+region = Rect2(612, 0, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a3_1"]
+atlas = ExtResource("1")
+region = Rect2(306, 579, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a3_2"]
+atlas = ExtResource("1")
+region = Rect2(612, 579, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a0_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 0, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a0_1"]
+atlas = ExtResource("1")
+region = Rect2(306, 0, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a1_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 193, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a1_1"]
+atlas = ExtResource("1")
+region = Rect2(306, 193, 306, 193)
+
+[sub_resource type="AtlasTexture" id="a1_2"]
+atlas = ExtResource("1")
+region = Rect2(612, 193, 306, 193)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a2_0")
+}],
+"loop": false,
+"name": &"alert",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a2_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a2_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a2_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("a3_0")
+}],
+"loop": false,
+"name": &"charge",
+"speed": 3.4
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a3_3")
+}],
+"loop": false,
+"name": &"cooldown",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a0_2")
+}],
+"loop": false,
+"name": &"dead",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a3_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a3_2")
+}],
+"loop": false,
+"name": &"fire",
+"speed": 9.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a0_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_1")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a1_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a1_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a1_2")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 7.0
+}]

@@ -1,0 +1,125 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://btusqy1d5t7cy"]
+
+[ext_resource type="Texture2D" uid="uid://doc64irc7qlur" path="res://images/robo_minerador_anim.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="a3_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 411, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a3_1"]
+atlas = ExtResource("1")
+region = Rect2(214, 411, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a3_2"]
+atlas = ExtResource("1")
+region = Rect2(428, 411, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a0_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 0, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a0_1"]
+atlas = ExtResource("1")
+region = Rect2(214, 0, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a0_2"]
+atlas = ExtResource("1")
+region = Rect2(428, 0, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a3_3"]
+atlas = ExtResource("1")
+region = Rect2(642, 411, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a1_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 137, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a1_1"]
+atlas = ExtResource("1")
+region = Rect2(214, 137, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a1_2"]
+atlas = ExtResource("1")
+region = Rect2(428, 137, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a2_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 274, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a2_1"]
+atlas = ExtResource("1")
+region = Rect2(214, 274, 214, 137)
+
+[sub_resource type="AtlasTexture" id="a2_2"]
+atlas = ExtResource("1")
+region = Rect2(428, 274, 214, 137)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a3_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a3_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a3_2")
+}],
+"loop": false,
+"name": &"attack",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a0_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("a0_1")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a3_3")
+}],
+"loop": false,
+"name": &"vulnerable",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a1_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a1_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a1_2")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("a2_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("a2_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("a2_2")
+}],
+"loop": false,
+"name": &"windup",
+"speed": 6.0
+}]

@@ -8,6 +8,9 @@ extends CharacterBody2D
 ##   alterna investida frenética e mergulho de broca. Se o mergulho cair perto de
 ##   um EnergyCore (energy_core.gd, elemento do cenário), o escudo cai e a bateria
 ##   do núcleo fica exposta por "exposed_time". Bater na bateria causa o dano.
+##   O corpo nunca machuca na fase 2: a vida só cai ao acertar as baterias, e o
+##   chefe só morre quando TODAS forem destruídas (cada uma vale uma fatia igual
+##   da barra da fase 2; com 2 baterias e as duas fases iguais: 25% + 25%).
 ##
 ## O chefe só se move com move_and_collide: a máscara de colisão dele deve ter
 ## SÓ o chão e as paredes da arena (não o jogador). O dano vem de áreas.
@@ -41,9 +44,8 @@ enum Attack { NONE, LUNGE, RAM, PRISM, DIVE }
 @export var phase2_health := 10.0
 ## Fase 1: dano fora das janelas de vulnerabilidade (1.0 = dano total sempre).
 @export_range(0.0, 1.0) var guarded_damage_multiplier := 0.5
-## Fase 2: dano de cada acerto na bateria (o golpe do jogador vale 1).
-@export var battery_damage := 4.0
-@export var battery_hit_cooldown := 0.4
+## Fase 2: depois de destruir uma bateria o chefe fica atordoado por este tempo.
+@export var core_destroyed_stagger := 1.8
 ## Fase 2: dano no corpo com o escudo desligado (0 = só a bateria machuca).
 @export_range(0.0, 1.0) var exposed_body_damage_multiplier := 0.0
 @export var contact_damage := 1
@@ -76,6 +78,12 @@ enum Attack { NONE, LUNGE, RAM, PRISM, DIVE }
 @export var ram_max_time := 3.0
 ## Atordoamento ao bater na parede (janela de dano total).
 @export var ram_stun := 2.0
+## A investida mira na altura do jogador: a altura é travada quando o ataque
+## começa (não segue o jogador depois) e o chefe se alinha durante o aviso.
+## Vale para as duas fases.
+@export var ram_aim_player_y := true
+## Velocidade mínima com que ele sobe/desce até a altura travada.
+@export var ram_align_speed := 450.0
 
 @export_group("Fase 1: disparo prismático")
 @export var prism_windup := 1.0
@@ -87,28 +95,28 @@ enum Attack { NONE, LUNGE, RAM, PRISM, DIVE }
 @export var projectile_scene: PackedScene
 
 @export_group("Fase 2: ritmo")
-@export var p2_idle_min := 1.0
-@export var p2_idle_max := 1.6
-@export var p2_chase_speed := 220.0
+@export var p2_idle_min := 1.8
+@export var p2_idle_max := 2.6
+@export var p2_chase_speed := 150.0
 ## Chance de mergulhar quando o jogador está perto de um núcleo / longe deles.
 @export_range(0.0, 1.0) var dive_chance_near_core := 0.8
 @export_range(0.0, 1.0) var dive_chance_default := 0.3
 
 @export_group("Fase 2: investida frenética")
-@export var p2_ram_windup := 0.6
-@export var p2_ram_speed := 1100.0
-@export var p2_ram_recovery := 0.8
+@export var p2_ram_windup := 1.0
+@export var p2_ram_speed := 800.0
+@export var p2_ram_recovery := 1.5
 
 @export_group("Fase 2: mergulho de broca")
 @export var dive_rise_height := 140.0
-@export var dive_windup := 0.8
+@export var dive_windup := 1.2
 ## Nos últimos segundos do aviso a posição horizontal trava.
 @export var dive_lock_time := 0.25
-@export var dive_speed := 1000.0
+@export var dive_speed := 850.0
 ## Preso no chão FORA de um núcleo (escudo continua ligado).
-@export var dive_stuck_time := 1.2
+@export var dive_stuck_time := 1.8
 ## Bateria exposta quando o mergulho cai perto de um núcleo.
-@export var exposed_time := 3.0
+@export var exposed_time := 5.0
 ## Distância horizontal (px) do impacto ao núcleo para expor a bateria.
 @export var core_trigger_radius := 160.0
 ## Se verdadeiro, a investida que bater na parede perto de um núcleo também o expõe.
@@ -139,6 +147,7 @@ var _timer := 0.0
 var _duration := 0.0
 var _idle_wait := 1.0
 var _time := 0.0
+var _home_x := 0.0
 var _home_y := 0.0
 var _hover_side := 1
 var _contact_active := false
@@ -148,14 +157,17 @@ var _stun_exposed := false
 var _battery_cd := 0.0
 var _prism_fired := 0
 var _player: Node2D
+var _ram_target_y := 0.0
 var _exposed_core: EnergyCore
 var _cores: Array[EnergyCore] = []
+var _total_cores := 0
 
 
 func _ready() -> void:
 	add_to_group("enemy")
 	add_to_group("boss")
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
+	_home_x = global_position.x  # posição fixa do chefe: onde ele foi colocado na cena
 	_home_y = global_position.y
 	phase = 1
 	max_health = phase1_health
@@ -177,7 +189,8 @@ func _find_cores() -> void:
 	for node in get_tree().get_nodes_in_group("energy_core"):
 		var core := node as EnergyCore
 		if core:
-			core.battery_hit.connect(_on_battery_hit)
+			core.damaged.connect(_on_core_damaged.bind(core))
+			core.destroyed.connect(_on_core_destroyed.bind(core))
 			_cores.append(core)
 
 
@@ -190,6 +203,7 @@ func _on_trigger_entered(body: Node2D) -> void:
 func start_fight() -> void:
 	if _state != State.INACTIVE:
 		return
+	global_position = Vector2(_home_x, _home_y)  # sempre começa a luta na mesma posição
 	_player = get_tree().get_first_node_in_group("player") as Node2D
 	health_changed.emit(health, max_health)
 	started.emit()
@@ -331,6 +345,7 @@ func _start_attack(attack: Attack) -> void:
 		Attack.LUNGE:
 			_enter(State.WINDUP, lunge_windup)
 		Attack.RAM:
+			_ram_target_y = _player_center_y() if ram_aim_player_y else global_position.y
 			_enter(State.WINDUP, ram_windup if phase == 1 else p2_ram_windup)
 		Attack.PRISM:
 			_enter(State.WINDUP, prism_windup)
@@ -341,6 +356,8 @@ func _start_attack(attack: Attack) -> void:
 func _process_windup(delta: float) -> void:
 	if _attack == Attack.DIVE:
 		_process_dive_windup(delta)
+	elif _attack == Attack.RAM:
+		_align_to_ram_height(delta, maxf(_duration - _timer, 0.01))
 	if _timer < _duration:
 		return
 	match _attack:
@@ -381,6 +398,7 @@ func _check_lunge_hit() -> void:
 
 func _process_ram(delta: float) -> void:
 	var speed := ram_speed if phase == 1 else p2_ram_speed
+	_align_to_ram_height(delta, 0.15)  # termina de alinhar se ainda faltar um pouco
 	var collision := move_and_collide(Vector2(facing * speed * delta, 0.0))
 	if collision and absf(collision.get_normal().x) > 0.5:
 		impact.emit(1.0)
@@ -395,6 +413,26 @@ func _process_ram(delta: float) -> void:
 				_enter(State.RECOVERY, p2_ram_recovery)
 	elif _timer >= _duration:
 		_enter(State.RECOVERY, 0.5)
+
+
+## Sobe/desce até a altura travada da investida. "time_left" é o tempo que
+## ainda resta para chegar lá (no aviso, o que falta do windup).
+## O movimento vertical é separado do horizontal: encostar no chão não freia a
+## investida (o corpo para no chão e a área de contato ainda alcança o jogador).
+func _align_to_ram_height(delta: float, time_left: float) -> void:
+	var dy := _ram_target_y - global_position.y
+	if absf(dy) < 1.0:
+		return
+	var speed := maxf(ram_align_speed, absf(dy) / time_left)
+	move_and_collide(Vector2(0.0, clampf(dy, -speed * delta, speed * delta)))
+
+
+## Altura do centro do corpo do jogador (o nó do jogador tem a origem deslocada).
+func _player_center_y() -> float:
+	if _player == null:
+		return global_position.y
+	var body := _player.get_node_or_null("CollisionShape2D") as Node2D
+	return body.global_position.y if body else _player.global_position.y
 
 
 func _process_prism() -> void:
@@ -459,6 +497,8 @@ func _find_core_near(pos: Vector2, radius: float) -> EnergyCore:
 	var best: EnergyCore = null
 	var best_dist := radius
 	for core in _cores:
+		if not core.can_be_exposed():
+			continue  # desligada, já exposta ou destruída
 		var d := absf(core.global_position.x - pos.x)
 		if d <= best_dist:
 			best = core
@@ -492,11 +532,45 @@ func _end_stun() -> void:
 	_enter_idle()
 
 
-func _on_battery_hit(amount: int) -> void:
-	if phase != 2 or _state != State.STUNNED or not _stun_exposed or _battery_cd > 0.0:
+func _cores_remaining() -> int:
+	var count := 0
+	for core in _cores:
+		if not core.is_destroyed():
+			count += 1
+	return count
+
+
+## Cada acerto na bateria tira uma fração da fatia de vida que ela vale.
+func _on_core_damaged(_hits_left: int, core: EnergyCore) -> void:
+	if phase != 2 or _state == State.DEAD or _total_cores <= 0:
 		return
-	_battery_cd = battery_hit_cooldown
-	_apply_damage(float(amount) * battery_damage)
+	var share := max_health / float(_total_cores)
+	var per_hit := share / float(maxi(core.max_hits, 1))
+	# Nunca desce abaixo da fatia das outras baterias ainda de pé.
+	var floor_health := share * float(_cores_remaining() - 1)
+	health = maxf(health - per_hit, floor_health)
+	health_changed.emit(health, max_health)
+	_flash()
+	impact.emit(0.4)
+
+
+func _on_core_destroyed(core: EnergyCore) -> void:
+	if phase != 2 or _state == State.DEAD:
+		return
+	var remaining := _cores_remaining()
+	health = max_health * float(remaining) / float(maxi(_total_cores, 1))
+	health_changed.emit(health, max_health)
+	impact.emit(1.0)
+	if remaining <= 0:
+		_die()
+		return
+	# Ainda há baterias: o escudo volta e o chefe fica atordoado um instante.
+	if _exposed_core == core:
+		_exposed_core = null
+	_stun_exposed = false
+	_shield_up = true
+	_update_shield_visual()
+	_enter(State.STUNNED, core_destroyed_stagger)
 
 
 # --- Dano e fases -----------------------------------------------------------
@@ -521,7 +595,11 @@ func _damage_multiplier() -> float:
 
 
 func _apply_damage(value: float) -> void:
-	health = maxf(health - value, 0.0)
+	var lowest := 0.0
+	if phase == 2 and _total_cores > 0:
+		# O corpo não derruba o chefe: só destruir as baterias zera a vida.
+		lowest = max_health * float(_cores_remaining()) / float(_total_cores)
+	health = maxf(health - value, lowest)
 	health_changed.emit(health, max_health)
 	_flash()
 	if health > 0.0:
@@ -547,6 +625,9 @@ func _process_transition(delta: float) -> void:
 		max_health = phase2_health
 		health = max_health
 		_shield_up = true
+		_total_cores = _cores.size()
+		for core in _cores:
+			core.activate()  # as baterias só ligam na fase 2
 		_set_phase_visuals()
 		health_changed.emit(health, max_health)
 		phase_changed.emit(2)

@@ -11,11 +11,15 @@ signal released
 ## O ponto precisa estar pelo menos isto acima do jogador para ser alcançável.
 @export var min_height_above := 32.0
 ## Força do balanço ao segurar esquerda/direita.
-@export var swing_force := 900.0
-@export var max_swing_speed := 900.0
-@export var gravity_scale := 1.0
+## Gravidade só enquanto balança, em relação à do jogador (420). 2.3 ≈ gravidade da
+## Terra (~980), para o balanço ter peso de pêndulo mesmo com a fase em baixa gravidade.
+@export var gravity_scale := 2.3
+@export var swing_force := 1000.0
+@export var max_swing_speed := 1100.0
+## Perda de energia do balanço por segundo (0 = pêndulo perfeito; ~0.2 = natural).
+@export_range(0.0, 2.0) var swing_damping := 0.2
 ## Multiplicador de velocidade ao soltar (mantém o momentum).
-@export var release_boost := 1.15
+@export var release_boost := 1.1
 @export var rope_line: Line2D
 
 var is_attached := false
@@ -24,10 +28,16 @@ var rope_length := 0.0
 
 var _player: Player
 var _highlighted: Node2D
+var _attach_frame := -1
+## Distância da origem do Player até o centro do corpo (a corda parte do corpo).
+var _center_offset := Vector2.ZERO
 
 
 func _ready() -> void:
 	_player = get_parent() as Player
+	var body_shape := _player.get_node_or_null("CollisionShape2D") as Node2D
+	if body_shape:
+		_center_offset = body_shape.position
 	if rope_line:
 		rope_line.top_level = true  # pontos da corda em coordenadas globais
 		rope_line.visible = false
@@ -47,8 +57,9 @@ func try_attach() -> bool:
 	if target == null:
 		return false
 	anchor = target
-	rope_length = _player.global_position.distance_to(anchor.global_position)
+	rope_length = _center().distance_to(anchor.global_position)
 	is_attached = true
+	_attach_frame = Engine.get_physics_frames()
 	_set_highlight(null)
 	if rope_line:
 		rope_line.visible = true
@@ -70,14 +81,16 @@ func release() -> void:
 ## Chamado todo frame de física enquanto o gancho está preso.
 ## dir: -1, 0 ou 1 (esquerda/direita).
 func physics_step(delta: float, dir: float) -> void:
-	if Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("grapple"):
-		release()
-		return
+	# O mesmo botão que prende solta: ignora o quadro em que acabou de prender.
+	if Engine.get_physics_frames() != _attach_frame:
+		if Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("grapple"):
+			release()
+			return
 
 	var v := _player.velocity
 	v.y += _player.gravity * gravity_scale * delta
 
-	var offset := _player.global_position - anchor.global_position
+	var offset := _center() - anchor.global_position
 	var dist := maxf(offset.length(), 0.001)
 	var radial := offset / dist  # direção do ponto até o jogador
 
@@ -93,8 +106,9 @@ func physics_step(delta: float, dir: float) -> void:
 		var outward := v.dot(radial)
 		if outward > 0.0:
 			v -= radial * outward
-		_player.global_position = anchor.global_position + radial * rope_length
+		_player.global_position = anchor.global_position + radial * rope_length - _center_offset
 
+	v *= maxf(1.0 - swing_damping * delta, 0.0)
 	_player.velocity = v.limit_length(max_swing_speed)
 
 
@@ -107,7 +121,7 @@ func _find_target() -> Node2D:
 		var point := node as Node2D
 		if point == null:
 			continue
-		var offset := point.global_position - _player.global_position
+		var offset := point.global_position - _center()
 		if offset.y > -min_height_above:
 			continue
 		var d := offset.length()
@@ -136,5 +150,16 @@ func _update_rope() -> void:
 	if rope_line == null or anchor == null:
 		return
 	rope_line.clear_points()
-	rope_line.add_point(_player.global_position)
+	rope_line.add_point(_center())
 	rope_line.add_point(anchor.global_position)
+
+
+## Direção do corpo do jogador até o ponto de ancoragem (usada para inclinar o sprite).
+func rope_direction() -> Vector2:
+	if not is_attached or anchor == null:
+		return Vector2.ZERO
+	return (anchor.global_position - _center()).normalized()
+
+
+func _center() -> Vector2:
+	return _player.global_position + _center_offset

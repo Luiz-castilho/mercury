@@ -1,0 +1,66 @@
+[gd_scene format=3 uid="uid://de040hvwrpmdh"]
+
+[ext_resource type="Script" uid="uid://cb7rp08ujp4h7" path="res://scripts/player.gd" id="1_qm0ti"]
+[ext_resource type="Script" uid="uid://cgkdvgi1sgdxd" path="res://scripts/grapple.gd" id="2_fhbv5"]
+[ext_resource type="SpriteFrames" path="res://images/player_frames.tres" id="3_frames"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_71etw"]
+radius = 46.0
+height = 92.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_attack"]
+size = Vector2(110, 100)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_downattack"]
+size = Vector2(80, 70)
+
+[node name="Player" type="CharacterBody2D" unique_id=1099041807 node_paths=PackedStringArray("attack_area", "down_attack_area")]
+collision_mask = 6
+platform_wall_layers = 1
+script = ExtResource("1_qm0ti")
+attack_area = NodePath("Attack/Area2D")
+down_attack_area = NodePath("Attack/DownArea")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=735351487]
+position = Vector2(73, 3)
+shape = SubResource("CapsuleShape2D_71etw")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1099218394]
+position = Vector2(73, -9)
+scale = Vector2(0.52, 0.52)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle"
+autoplay = "idle"
+
+[node name="Attack" type="Node2D" parent="." unique_id=1995654605]
+position = Vector2(2, 0)
+
+[node name="Area2D" type="Area2D" parent="Attack" unique_id=1306021209]
+position = Vector2(71, 3)
+collision_layer = 0
+collision_mask = 40
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Attack/Area2D"]
+position = Vector2(85, 0)
+shape = SubResource("RectangleShape2D_attack")
+
+[node name="DownArea" type="Area2D" parent="Attack"]
+position = Vector2(71, 3)
+collision_layer = 0
+collision_mask = 40
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Attack/DownArea"]
+position = Vector2(0, 80)
+shape = SubResource("RectangleShape2D_downattack")
+
+[node name="Grapple" type="Node2D" parent="." unique_id=595929286]
+position = Vector2(12, 1)
+script = ExtResource("2_fhbv5")
+
+[node name="RopeLine" type="Line2D" parent="Grapple" unique_id=1516622157]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1951931763]
+position = Vector2(73, -60)
+limit_smoothed = true
+position_smoothing_enabled = true
+position_smoothing_speed = 6.0

@@ -7,7 +7,8 @@ extends CharacterBody2D
 ## Estrutura de nós (script no nó raiz):
 ##   Lampesouro (CharacterBody2D)
 ##   ├── CollisionShape2D
-##   ├── Sprite2D                      -> campo "sprite" (arte virada para a DIREITA)
+##   ├── AnimatedSprite2D              -> campo "sprite" (arte virada para a DIREITA)
+##   │     animações: idle, walk, alert, charge, fire, cooldown, dead
 ##   ├── DetectionArea (Area2D)        -> raio curto; máscara = camada do jogador
 ##   └── LaserPivot (Node2D)           -> campo "laser_pivot"
 ##       ├── Telegraph (Polygon2D ou ColorRect semitransparente) -> "telegraph"
@@ -39,7 +40,7 @@ enum State { IDLE, ALERT, CHARGE, FIRE, COOLDOWN, DEAD }
 @export var laser_pivot: Node2D
 @export var telegraph: CanvasItem
 @export var laser_hitbox: Area2D
-@export var sprite: Node2D
+@export var sprite: AnimatedSprite2D
 
 var health := 0
 var facing := 1
@@ -84,13 +85,6 @@ func _physics_process(delta: float) -> void:
 			velocity.x = 0.0
 			if _timer >= cooldown_time:
 				_enter(State.IDLE)
-	var direction = Input.get_axis("ui_left", "ui_right")
-	
-	# Espelha o sprite apenas quando há movimento horizontal
-	if direction > 0:
-		sprite.flip_h = false # Olhando para a direita (padrão)
-	elif direction < 0:
-		sprite.flip_h = true  # Espelhado para a esquerda
 	move_and_slide()
 
 
@@ -105,6 +99,12 @@ func _enter(new_state: State) -> void:
 		_hit_player = false
 	if new_state == State.ALERT:
 		_face_player()
+	match new_state:
+		State.IDLE: _play(&"idle", true)
+		State.ALERT: _play(&"alert", true)
+		State.CHARGE: _play(&"charge", true)
+		State.FIRE: _play(&"fire", true)
+		State.COOLDOWN: _play(&"cooldown", true)
 
 
 func _process_idle() -> void:
@@ -115,8 +115,20 @@ func _process_idle() -> void:
 		if is_on_wall():
 			_face(-facing)
 		velocity.x = facing * patrol_speed
+		_play(&"walk")
 	else:
 		velocity.x = 0.0
+		_play(&"idle")
+
+
+## Troca a animação. restart = true reinicia mesmo se já for a atual.
+func _play(anim: StringName, restart := false) -> void:
+	if sprite == null or sprite.sprite_frames == null:
+		return
+	if not sprite.sprite_frames.has_animation(anim):
+		return
+	if restart or sprite.animation != anim:
+		sprite.play(anim)
 
 
 func _find_player_in_range() -> bool:
@@ -170,6 +182,7 @@ func _flash() -> void:
 
 func _die() -> void:
 	_state = State.DEAD
+	_play(&"dead", true)
 	velocity = Vector2.ZERO
 	collision_layer = 0
 	collision_mask = 0
